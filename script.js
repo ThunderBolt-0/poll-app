@@ -17,11 +17,24 @@ const db = getDatabase(app);
 const pollRef = ref(db, 'poll');
 
 let isAdmin = false;
-let currentPoll = {
-  question: "",
-  options: [],
-  votes: []
-};
+let currentPoll = null;
+
+onValue(ref(db, "poll"), (snapshot) => {
+  if (snapshot.exists()) {
+    currentPoll = snapshot.val();
+    renderPoll();
+  } else {
+    // Set a default poll if none exists
+    currentPoll = {
+      question: "What's your favorite programming language?",
+      options: ["JavaScript", "Python", "C++"],
+      votes: [0, 0, 0],
+    };
+    set(ref(db, "poll"), currentPoll);
+    renderPoll();
+  }
+});
+
 
 const q = document.getElementById("question");
 const opts = document.getElementById("options");
