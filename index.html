@@ -2,29 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Poll App</title>
+  <title>Cool Poll App</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
-  <div id="poll-container">
-    <h2 id="question"></h2>
-    <div id="options"></div>
+  <div class="container" id="poll-container">
+    <h1 class="fade-in">📊 Poll of the Day</h1>
+    <h2 id="question" class="slide-in"></h2>
+    <div id="options" class="fade-in"></div>
     <div id="result"></div>
-    <button id="admin-login">Admin</button>
+    <button id="admin-login" class="button blue">Admin</button>
   </div>
 
-  <div id="admin-panel" style="display:none;">
-    <input type="password" id="admin-password" placeholder="Enter admin password">
-    <button id="login-btn">Login</button>
+  <div class="container" id="admin-panel" style="display:none;">
+    <input type="password" id="admin-password" placeholder="Enter admin password" class="input">
+    <button id="login-btn" class="button">Login</button>
+
     <div id="admin-form" style="display:none;">
-      <input id="new-question" placeholder="Poll question">
+      <input id="new-question" placeholder="Poll question" class="input">
       <div id="options-container">
-        <input class="option-input" placeholder="Option 1">
-        <input class="option-input" placeholder="Option 2">
+        <input class="option-input input" placeholder="Option 1">
+        <input class="option-input input" placeholder="Option 2">
       </div>
-      <button id="add-option">+ Add Option</button>
-      <button id="save-poll">Save Poll</button>
+      <button id="add-option" class="button">+ Add Option</button>
+      <button id="save-poll" class="button blue">Save Poll</button>
     </div>
   </div>
 
