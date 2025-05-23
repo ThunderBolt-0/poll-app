@@ -1,107 +1,94 @@
 body {
-  background: #282c34;
-  color: #eee;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f7f9fc;
   margin: 0;
-  padding: 20px;
-  min-height: 100vh;
+  padding: 2rem;
+  color: #222;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  min-height: 100vh;
 }
 
 .container {
-  max-width: 600px;
+  background: white;
+  padding: 1.5rem 2rem;
+  max-width: 480px;
   width: 100%;
-  background: #3a3f4b;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 0 10px #0008;
+  border-radius: 10px;
+  box-shadow: 0 6px 15px rgb(0 0 0 / 0.1);
 }
 
 h1, h2 {
-  margin: 0 0 1rem 0;
-  font-weight: 600;
+  margin-top: 0;
 }
 
 .button {
-  background: #5a5f6a;
   border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  color: #eee;
   cursor: pointer;
+  padding: 0.6rem 1.1rem;
+  border-radius: 6px;
   font-weight: 600;
-  margin-top: 1rem;
-  user-select: none;
+  font-size: 1rem;
+  background: #ddd;
   transition: background-color 0.3s ease;
-}
-.button:hover:not(:disabled) {
-  background: #7682a1;
+  user-select: none;
 }
 
-.button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+.button:hover {
+  background-color: #ccc;
 }
 
-.blue {
-  background: #2c7df7;
-}
-.blue:hover {
-  background: #1a5bd8;
+.button:active {
+  background-color: #bbb;
 }
 
-.red {
-  background: #d94141;
+.button.blue {
+  background-color: #287bff;
+  color: white;
 }
-.red:hover {
-  background: #a83838;
+
+.button.blue:hover {
+  background-color: #1055d6;
+}
+
+.button.red {
+  background-color: #ff3c3c;
+  color: white;
+}
+
+.button.red:hover {
+  background-color: #d63030;
 }
 
 .input {
   width: 100%;
-  padding: 8px 10px;
-  margin-bottom: 10px;
-  border-radius: 5px;
-  border: none;
+  padding: 0.6rem 0.8rem;
+  margin: 0.3rem 0 1rem;
+  border: 1.5px solid #ccc;
+  border-radius: 6px;
   font-size: 1rem;
 }
 
 .option {
-  margin-right: 10px;
-  margin-bottom: 10px;
-  padding: 7px 12px;
-  border-radius: 5px;
-  border: none;
-  background: #5a5f6a;
-  color: #eee;
-  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-weight: 600;
-  transition: background-color 0.3s ease;
 }
 
-.option:hover:not(:disabled) {
-  background: #7682a1;
+.vote-count {
+  font-weight: normal;
+  color: #555;
+  margin-left: 0.5rem;
 }
 
-.option:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 1s forwards;
 }
 
-.poll {
-  margin-bottom: 2rem;
-  background: #444b5a;
-  padding: 15px;
-  border-radius: 8px;
-}
-
-.results > div {
-  margin-top: 5px;
-  background: #2c7df7;
-  color: #fff;
-  border-radius: 3px;
-  padding: 4px 8px;
-  font-size: 0.9rem;
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
 }

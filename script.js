@@ -7,24 +7,23 @@ import {
   push,
   remove,
   get,
-  child,
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-// ====== Your Firebase config here ======
+// --- Your Firebase config here ---
 const firebaseConfig = {
-  apiKey: "AIzaSyANTrZQjs6BGOq0tpmt6bCylCkI1zDFfc4",
-  authDomain: "poll-app-adfec.firebaseapp.com",
-  projectId: "poll-app-adfec",
-  storageBucket: "poll-app-adfec.firebasestorage.app",
-  messagingSenderId: "36150502134",
-  appId: "1:36150502134:web:88c7c11be44a3a8f85c2d7",
-  measurementId: "G-8RDL2DVR4Q"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// DOM elements
+// DOM Elements
 const pollsList = document.getElementById("polls-list");
 const resultDiv = document.getElementById("result");
 const adminLoginBtn = document.getElementById("admin-login");
@@ -42,12 +41,21 @@ const ADMIN_PASSWORD = "ADMIN1234";
 
 let isAdmin = false;
 
-// Utility: Clear child elements
+// Clear children helper
 function clearChildren(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-// Render all polls
+// Animate appearance of an element with GSAP
+function animateIn(el) {
+  gsap.fromTo(
+    el,
+    {opacity:0, y:20},
+    {opacity:1, y:0, duration:0.5, ease:"power2.out"}
+  );
+}
+
+// Render polls with live vote counts and buttons
 function renderPolls(pollsData) {
   clearChildren(pollsList);
   resultDiv.textContent = "";
@@ -57,54 +65,67 @@ function renderPolls(pollsData) {
     return;
   }
 
-  // pollsData is an object: { pollId: { question, options, votes } }
   Object.entries(pollsData).forEach(([pollId, poll]) => {
     const pollDiv = document.createElement("div");
     pollDiv.className = "container";
-    pollDiv.style.marginBottom = "1rem";
+    pollDiv.style.marginBottom = "1.5rem";
 
     const q = document.createElement("h2");
     q.textContent = poll.question;
     pollDiv.appendChild(q);
 
     const optionsDiv = document.createElement("div");
-    optionsDiv.id = `options-${pollId}`;
     optionsDiv.style.display = "flex";
     optionsDiv.style.flexDirection = "column";
     optionsDiv.style.gap = "0.5rem";
 
-    // Show voting buttons or results
+    // Votes array fallback
+    let votes = poll.votes || [];
+    // Pad votes array to options length
+    while (votes.length < poll.options.length) votes.push(0);
+
     if (!isAdmin) {
-      // User mode - voting buttons
+      // User mode: Show buttons with live counts
       poll.options.forEach((option, i) => {
         const btn = document.createElement("button");
-        btn.textContent = option;
         btn.className = "option button";
-        btn.onclick = () => vote(pollId, i);
+
+        btn.innerHTML = `${option} <span class="vote-count">(${votes[i] || 0})</span>`;
+
+        btn.onclick = async () => {
+          await vote(pollId, i);
+        };
+
         optionsDiv.appendChild(btn);
+        animateIn(btn);
       });
     } else {
-      // Admin mode - show results and delete button
+      // Admin mode: Show results and delete button
       poll.options.forEach((option, i) => {
-        const votesCount = poll.votes ? poll.votes[i] || 0 : 0;
+        const count = votes[i] || 0;
         const voteInfo = document.createElement("div");
-        voteInfo.textContent = `${option}: ${votesCount} vote${votesCount !== 1 ? "s" : ""}`;
+        voteInfo.textContent = `${option}: ${count} vote${count !== 1 ? "s" : ""}`;
+        voteInfo.style.fontWeight = "bold";
         optionsDiv.appendChild(voteInfo);
+        animateIn(voteInfo);
       });
 
       const deleteBtn = document.createElement("button");
       deleteBtn.textContent = "Delete Poll";
       deleteBtn.className = "button red";
+      deleteBtn.style.marginTop = "10px";
       deleteBtn.onclick = () => deletePoll(pollId);
       optionsDiv.appendChild(deleteBtn);
+      animateIn(deleteBtn);
     }
 
     pollDiv.appendChild(optionsDiv);
     pollsList.appendChild(pollDiv);
+    animateIn(pollDiv);
   });
 }
 
-// Vote on an option
+// Voting function updates vote count on Firebase
 async function vote(pollId, optionIndex) {
   const votesRef = ref(db, `polls/${pollId}/votes`);
 
@@ -113,17 +134,19 @@ async function vote(pollId, optionIndex) {
     let votes = snapshot.val();
 
     if (!votes) {
-      votes = Array.from({ length: 10 }, () => 0); // max 10 options, initialize with zeros
+      votes = Array.from({ length: 10 }, () => 0); // initialize 10 zeros max options
     }
 
-    // Make sure votes array is long enough
+    // Pad votes array
     while (votes.length < 10) votes.push(0);
 
     votes[optionIndex] = (votes[optionIndex] || 0) + 1;
 
     await set(votesRef, votes);
 
-    resultDiv.textContent = `Thanks for voting!`;
+    resultDiv.textContent = "Thanks for voting!";
+    gsap.fromTo(resultDiv, {opacity:0, y:-10}, {opacity:1, y:0, duration:0.6, ease:"power2.out"});
+
   } catch (e) {
     console.error("Voting error:", e);
   }
@@ -168,7 +191,7 @@ async function savePoll() {
     // Clear form
     newQuestionInput.value = "";
     clearChildren(optionsContainer);
-    addOptionInput(); // add two inputs by default
+    addOptionInput();
     addOptionInput();
 
     alert("Poll saved!");
@@ -206,28 +229,28 @@ function adminLogin() {
 function adminLogout() {
   isAdmin = false;
   adminPanel.style.display = "none";
-  adminLoginBtn.style.display = "inline-block";
-  clearChildren(pollsList);
+  adminLoginBtn.style.display = "block";
+  pollsList.innerHTML = "";
   resultDiv.textContent = "";
   loadPolls();
 }
 
-// Load polls from Firebase
+// Load polls and listen for changes
 function loadPolls() {
   const pollsRef = ref(db, "polls");
   onValue(pollsRef, (snapshot) => {
-    renderPolls(snapshot.val());
+    const data = snapshot.val();
+    renderPolls(data);
   });
 }
 
-// Event Listeners
+// Event listeners
 adminLoginBtn.addEventListener("click", () => {
   adminPanel.style.display = "block";
+  adminLoginBtn.style.display = "none";
 });
 
 loginBtn.addEventListener("click", adminLogin);
-
-logoutBtn.addEventListener("click", adminLogout);
 
 addOptionBtn.addEventListener("click", () => {
   addOptionInput();
@@ -235,8 +258,11 @@ addOptionBtn.addEventListener("click", () => {
 
 savePollBtn.addEventListener("click", savePoll);
 
-// Initialize
-clearChildren(optionsContainer);
+logoutBtn.addEventListener("click", adminLogout);
+
+// Init form with two option inputs
 addOptionInput();
 addOptionInput();
+
+// Start
 loadPolls();
