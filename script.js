@@ -1,4 +1,6 @@
-// === Firebase Config ===
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyANTrZQjs6BGOq0tpmt6bCylCkI1zDFfc4",
   authDomain: "poll-app-adfec.firebaseapp.com",
@@ -10,32 +12,22 @@ const firebaseConfig = {
 };
 
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const pollRef = ref(db, 'poll');
 
 let isAdmin = false;
-let currentPoll = null;
+let currentPoll = {
+  question: "",
+  options: [],
+  votes: []
+};
 
-// === DOM Elements ===
 const q = document.getElementById("question");
 const opts = document.getElementById("options");
 const res = document.getElementById("result");
 
-const adminPanel = document.getElementById("admin-panel");
-const adminLoginBtn = document.getElementById("admin-login");
-const loginBtn = document.getElementById("login-btn");
-const adminForm = document.getElementById("admin-form");
-const adminPasswordInput = document.getElementById("admin-password");
-const optionsContainer = document.getElementById("options-container");
-const addOptionBtn = document.getElementById("add-option");
-const savePollBtn = document.getElementById("save-poll");
-const logoutBtn = document.getElementById("logout-btn");
-const newQuestionInput = document.getElementById("new-question");
-
-// === Poll Rendering ===
 function renderPoll() {
-  if (!currentPoll) return;
-
   q.innerText = currentPoll.question;
   opts.innerHTML = "";
   res.innerHTML = "";
@@ -44,37 +36,34 @@ function renderPoll() {
     const btn = document.createElement("button");
     btn.className = "option";
     btn.textContent = opt;
-    btn.disabled = !isAdmin && localStorage.getItem("voted");
+    btn.disabled = !isAdmin && localStorage.getItem("pollApp_voted");
     btn.onclick = () => vote(i);
     opts.appendChild(btn);
-
     gsap.from(btn, { opacity: 0, x: -50, duration: 0.6, delay: i * 0.1 });
   });
 
-  if (localStorage.getItem("voted") || isAdmin) {
+  if (localStorage.getItem("pollApp_voted") || isAdmin) {
     showResults();
   }
 }
 
-// === Vote Function ===
 function vote(index) {
-  if (!isAdmin && localStorage.getItem("voted")) {
+  if (!isAdmin && localStorage.getItem("pollApp_voted")) {
     alert("You've already voted.");
     return;
   }
 
   currentPoll.votes[index]++;
-  db.ref("poll").set(currentPoll);
+  update(pollRef, { votes: currentPoll.votes });
 
   if (!isAdmin) {
-    localStorage.setItem("voted", "true");
+    localStorage.setItem("pollApp_voted", "true");
   }
 
   showResults();
   renderPoll();
 }
 
-// === Show Results ===
 function showResults() {
   res.innerHTML = "";
   const totalVotes = currentPoll.votes.reduce((a, b) => a + b, 0);
@@ -88,23 +77,31 @@ function showResults() {
   });
 }
 
-// === Admin Events ===
+// Admin panel
+const adminPanel = document.getElementById("admin-panel");
+const adminLoginBtn = document.getElementById("admin-login");
+const loginBtn = document.getElementById("login-btn");
+const adminForm = document.getElementById("admin-form");
+const adminPasswordInput = document.getElementById("admin-password");
+const optionsContainer = document.getElementById("options-container");
+const addOptionBtn = document.getElementById("add-option");
+const savePollBtn = document.getElementById("save-poll");
+const logoutBtn = document.getElementById("logout-btn");
+const newQuestionInput = document.getElementById("new-question");
+
 adminLoginBtn.onclick = () => {
   adminPanel.style.display = adminPanel.style.display === "block" ? "none" : "block";
 };
 
 loginBtn.onclick = () => {
-  const pass = adminPasswordInput.value;
-  if (pass === "Admin1234") {
+  if (adminPasswordInput.value === "ADMIN1234") {
     isAdmin = true;
     adminForm.style.display = "block";
     newQuestionInput.value = currentPoll.question;
     populateOptionsInputs();
-    gsap.from(adminForm, { opacity: 0, y: -20, duration: 0.4 });
     alert("Logged in as admin.");
   } else {
     alert("Wrong password.");
-    adminPasswordInput.value = "";
   }
 };
 
@@ -122,7 +119,6 @@ function populateOptionsInputs() {
     const input = document.createElement("input");
     input.className = "option-input input";
     input.placeholder = `Option ${i + 1}`;
-    input.maxLength = 50;
     input.value = opt;
     optionsContainer.appendChild(input);
   });
@@ -130,44 +126,35 @@ function populateOptionsInputs() {
 
 addOptionBtn.onclick = () => {
   const currentInputs = optionsContainer.querySelectorAll("input.option-input");
-  if (currentInputs.length >= 5) {
-    alert("Maximum 5 options allowed.");
-    return;
-  }
-  if (currentInputs[currentInputs.length - 1].value.trim() === "") {
-    alert("Fill the last option first.");
-    return;
-  }
+  if (currentInputs.length >= 5) return;
+  const last = currentInputs[currentInputs.length - 1];
+  if (last && last.value.trim() === "") return;
+
   const input = document.createElement("input");
   input.className = "option-input input";
   input.placeholder = `Option ${currentInputs.length + 1}`;
-  input.maxLength = 50;
   optionsContainer.appendChild(input);
+  gsap.from(input, { opacity: 0, y: -10, duration: 0.3 });
 };
 
 savePollBtn.onclick = () => {
   const question = newQuestionInput.value.trim();
-  const optionInputs = Array.from(optionsContainer.querySelectorAll("input.option-input"));
-  const options = optionInputs.map(i => i.value.trim()).filter(v => v !== "");
-
+  const options = [...optionsContainer.querySelectorAll("input.option-input")].map(i => i.value.trim()).filter(Boolean);
   if (!question || options.length < 2) {
-    alert("Enter a question and at least 2 options.");
+    alert("Fill question and at least 2 options");
     return;
   }
-
-  currentPoll = {
-    question,
-    options,
-    votes: Array(options.length).fill(0)
-  };
-
-  localStorage.removeItem("voted");
-  db.ref("poll").set(currentPoll);
+  const votes = options.map(() => 0);
+  const newPoll = { question, options, votes };
+  set(pollRef, newPoll);
+  localStorage.removeItem("pollApp_voted");
   alert("Poll saved!");
 };
 
-// === Firebase Listener ===
-db.ref("poll").on("value", snapshot => {
-  currentPoll = snapshot.val();
-  renderPoll();
+// Listen for database changes
+onValue(pollRef, (snapshot) => {
+  if (snapshot.exists()) {
+    currentPoll = snapshot.val();
+    renderPoll();
+  }
 });
