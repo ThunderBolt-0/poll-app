@@ -120,11 +120,45 @@ h2 {
   gap: 0.6rem;
   margin-bottom: 1rem;
 }
+.poll {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.poll-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.poll-question {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+.poll-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+.delete-poll-btn {
+  background: #d93025;
+  border: none;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+.delete-poll-btn:hover {
+  background: #a8221a;
+}
 @media (max-width: 480px) {
   body {
     margin: 1rem;
   }
-}
-#poll-container > .container {
-  margin-bottom: 1.5rem;
 }
