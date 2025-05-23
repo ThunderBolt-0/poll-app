@@ -125,3 +125,6 @@ h2 {
     margin: 1rem;
   }
 }
+#poll-container > .container {
+  margin-bottom: 1.5rem;
+}
