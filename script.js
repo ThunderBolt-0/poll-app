@@ -11,13 +11,13 @@ import {
 
 // --- Your Firebase config here ---
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
+  apiKey: "AIzaSyANTrZQjs6BGOq0tpmt6bCylCkI1zDFfc4",
+  authDomain: "poll-app-adfec.firebaseapp.com",
+  projectId: "poll-app-adfec",
+  storageBucket: "poll-app-adfec.firebasestorage.app",
+  messagingSenderId: "36150502134",
+  appId: "1:36150502134:web:88c7c11be44a3a8f85c2d7",
+  measurementId: "G-8RDL2DVR4Q"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -55,6 +55,16 @@ function animateIn(el) {
   );
 }
 
+// Check if user has voted for this poll (localStorage)
+function hasVoted(pollId) {
+  return localStorage.getItem(`voted_${pollId}`) === "true";
+}
+
+// Mark user has voted for this poll
+function markVoted(pollId) {
+  localStorage.setItem(`voted_${pollId}`, "true");
+}
+
 // Render polls with live vote counts and buttons
 function renderPolls(pollsData) {
   clearChildren(pollsList);
@@ -79,22 +89,31 @@ function renderPolls(pollsData) {
     optionsDiv.style.flexDirection = "column";
     optionsDiv.style.gap = "0.5rem";
 
-    // Votes array fallback
+    // Votes fallback
     let votes = poll.votes || [];
     // Pad votes array to options length
     while (votes.length < poll.options.length) votes.push(0);
 
     if (!isAdmin) {
-      // User mode: Show buttons with live counts
+      // User mode: Show vote counts always
       poll.options.forEach((option, i) => {
         const btn = document.createElement("button");
         btn.className = "option button";
 
         btn.innerHTML = `${option} <span class="vote-count">(${votes[i] || 0})</span>`;
 
-        btn.onclick = async () => {
-          await vote(pollId, i);
-        };
+        // Only enable voting if user has not voted on this poll
+        if (!hasVoted(pollId)) {
+          btn.disabled = false;
+          btn.onclick = async () => {
+            await vote(pollId, i);
+          };
+        } else {
+          // Disable buttons if voted
+          btn.disabled = true;
+          btn.style.cursor = "default";
+          btn.title = "You have already voted";
+        }
 
         optionsDiv.appendChild(btn);
         animateIn(btn);
@@ -143,6 +162,9 @@ async function vote(pollId, optionIndex) {
     votes[optionIndex] = (votes[optionIndex] || 0) + 1;
 
     await set(votesRef, votes);
+
+    // Mark user voted locally so they can't vote again
+    markVoted(pollId);
 
     resultDiv.textContent = "Thanks for voting!";
     gsap.fromTo(resultDiv, {opacity:0, y:-10}, {opacity:1, y:0, duration:0.6, ease:"power2.out"});
