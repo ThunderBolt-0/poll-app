@@ -1,8 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  set,
+  push,
+  remove,
+  get,
+  child,
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-
-// Firebase config - replace with your own config
+// ====== Your Firebase config here ======
 const firebaseConfig = {
   apiKey: "AIzaSyANTrZQjs6BGOq0tpmt6bCylCkI1zDFfc4",
   authDomain: "poll-app-adfec.firebaseapp.com",
@@ -13,220 +21,222 @@ const firebaseConfig = {
   measurementId: "G-8RDL2DVR4Q"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Admin password
-const ADMIN_PASSWORD = "Admin12347";
-
 // DOM elements
-const pollContainer = document.getElementById("poll-container");
-const adminPanel = document.getElementById("admin-panel");
+const pollsList = document.getElementById("polls-list");
+const resultDiv = document.getElementById("result");
 const adminLoginBtn = document.getElementById("admin-login");
+const adminPanel = document.getElementById("admin-panel");
 const loginBtn = document.getElementById("login-btn");
-const adminForm = document.getElementById("admin-form");
 const adminPasswordInput = document.getElementById("admin-password");
+const adminForm = document.getElementById("admin-form");
+const newQuestionInput = document.getElementById("new-question");
 const optionsContainer = document.getElementById("options-container");
 const addOptionBtn = document.getElementById("add-option");
 const savePollBtn = document.getElementById("save-poll");
 const logoutBtn = document.getElementById("logout-btn");
-const newQuestionInput = document.getElementById("new-question");
+
+const ADMIN_PASSWORD = "ADMIN1234";
 
 let isAdmin = false;
-let currentPoll = null; // will hold current poll object
-let hasVoted = false;
 
-// Fetch poll from Firebase DB
-function fetchPoll() {
-  const pollRef = ref(db, 'poll');
-  onValue(pollRef, (snapshot) => {
-    if (snapshot.exists()) {
-      currentPoll = snapshot.val();
+// Utility: Clear child elements
+function clearChildren(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+// Render all polls
+function renderPolls(pollsData) {
+  clearChildren(pollsList);
+  resultDiv.textContent = "";
+
+  if (!pollsData) {
+    pollsList.textContent = "No polls available.";
+    return;
+  }
+
+  // pollsData is an object: { pollId: { question, options, votes } }
+  Object.entries(pollsData).forEach(([pollId, poll]) => {
+    const pollDiv = document.createElement("div");
+    pollDiv.className = "container";
+    pollDiv.style.marginBottom = "1rem";
+
+    const q = document.createElement("h2");
+    q.textContent = poll.question;
+    pollDiv.appendChild(q);
+
+    const optionsDiv = document.createElement("div");
+    optionsDiv.id = `options-${pollId}`;
+    optionsDiv.style.display = "flex";
+    optionsDiv.style.flexDirection = "column";
+    optionsDiv.style.gap = "0.5rem";
+
+    // Show voting buttons or results
+    if (!isAdmin) {
+      // User mode - voting buttons
+      poll.options.forEach((option, i) => {
+        const btn = document.createElement("button");
+        btn.textContent = option;
+        btn.className = "option button";
+        btn.onclick = () => vote(pollId, i);
+        optionsDiv.appendChild(btn);
+      });
     } else {
-      // Default poll if none exists in DB
-      currentPoll = {
-        question: "What's your favorite programming language?",
-        options: ["JavaScript", "Python", "C++"],
-        votes: [0, 0, 0],
-      };
-      set(ref(db, 'poll'), currentPoll);
+      // Admin mode - show results and delete button
+      poll.options.forEach((option, i) => {
+        const votesCount = poll.votes ? poll.votes[i] || 0 : 0;
+        const voteInfo = document.createElement("div");
+        voteInfo.textContent = `${option}: ${votesCount} vote${votesCount !== 1 ? "s" : ""}`;
+        optionsDiv.appendChild(voteInfo);
+      });
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "Delete Poll";
+      deleteBtn.className = "button red";
+      deleteBtn.onclick = () => deletePoll(pollId);
+      optionsDiv.appendChild(deleteBtn);
     }
-    hasVoted = !!localStorage.getItem("pollApp_voted");
-    renderPoll();
+
+    pollDiv.appendChild(optionsDiv);
+    pollsList.appendChild(pollDiv);
   });
 }
 
-// Render the poll UI
-function renderPoll() {
-  pollContainer.innerHTML = ""; // Clear container
+// Vote on an option
+async function vote(pollId, optionIndex) {
+  const votesRef = ref(db, `polls/${pollId}/votes`);
 
-  const title = document.createElement("h1");
-  title.textContent = "📊 Poll of the Day";
-  title.className = "fade-in";
-  pollContainer.appendChild(title);
+  try {
+    const snapshot = await get(votesRef);
+    let votes = snapshot.val();
 
-  const questionElem = document.createElement("h2");
-  questionElem.textContent = currentPoll.question;
-  questionElem.className = "slide-in";
-  pollContainer.appendChild(questionElem);
+    if (!votes) {
+      votes = Array.from({ length: 10 }, () => 0); // max 10 options, initialize with zeros
+    }
 
-  const optionsElem = document.createElement("div");
-  optionsElem.id = "options";
-  pollContainer.appendChild(optionsElem);
+    // Make sure votes array is long enough
+    while (votes.length < 10) votes.push(0);
 
-  const resultElem = document.createElement("div");
-  resultElem.id = "result";
-  pollContainer.appendChild(resultElem);
+    votes[optionIndex] = (votes[optionIndex] || 0) + 1;
 
-  // Create vote buttons or disable if voted
-  currentPoll.options.forEach((opt, i) => {
-    const btn = document.createElement("button");
-    btn.className = "option";
-    btn.textContent = opt;
-    btn.disabled = !isAdmin && hasVoted;
-    btn.onclick = () => vote(i);
-    optionsElem.appendChild(btn);
-  });
+    await set(votesRef, votes);
 
-  if (hasVoted || isAdmin) {
-    showResults();
-  }
-
-  // Show admin button if not admin already
-  if (!document.getElementById("admin-login") && !isAdmin) {
-    const adminBtn = document.createElement("button");
-    adminBtn.id = "admin-login";
-    adminBtn.textContent = "Admin";
-    adminBtn.className = "button blue";
-    adminBtn.onclick = toggleAdminPanel;
-    pollContainer.appendChild(adminBtn);
+    resultDiv.textContent = `Thanks for voting!`;
+  } catch (e) {
+    console.error("Voting error:", e);
   }
 }
 
-// Show poll results with percentages
-function showResults() {
-  const res = document.getElementById("result");
-  res.innerHTML = "";
-  const totalVotes = currentPoll.votes.reduce((a, b) => a + b, 0);
-
-  currentPoll.options.forEach((opt, i) => {
-    const percent = totalVotes ? Math.round((currentPoll.votes[i] / totalVotes) * 100) : 0;
-    const bar = document.createElement("div");
-    bar.textContent = `${opt}: ${percent}% (${currentPoll.votes[i]} votes)`;
-    res.appendChild(bar);
-  });
-}
-
-// Vote function
-function vote(index) {
-  if (!isAdmin && hasVoted) {
-    alert("You've already voted.");
-    return;
-  }
-
-  currentPoll.votes[index]++;
-  set(ref(db, 'poll'), currentPoll);
-  if (!isAdmin) {
-    localStorage.setItem("pollApp_voted", "true");
-    hasVoted = true;
-  }
-  renderPoll();
-}
-
-// Toggle admin panel visibility
-function toggleAdminPanel() {
-  if (adminPanel.style.display === "block") {
-    adminPanel.style.display = "none";
-  } else {
-    adminPanel.style.display = "block";
+// Delete poll (admin)
+async function deletePoll(pollId) {
+  if (!confirm("Are you sure you want to delete this poll?")) return;
+  try {
+    await remove(ref(db, `polls/${pollId}`));
+  } catch (e) {
+    console.error("Delete poll error:", e);
   }
 }
 
-// Admin login
-loginBtn.onclick = () => {
-  const pass = adminPasswordInput.value;
-  if (pass === ADMIN_PASSWORD) {
-    isAdmin = true;
-    adminForm.style.display = "block";
-    newQuestionInput.value = currentPoll.question;
-    populateOptionsInputs();
-    alert("Logged in as admin.");
-    adminPasswordInput.value = "";
-    adminPanel.style.display = "none";
-    renderPoll();
-  } else {
-    alert("Wrong password.");
-    adminPasswordInput.value = "";
-    adminPasswordInput.focus();
-  }
-};
-
-// Admin logout
-logoutBtn.onclick = () => {
-  isAdmin = false;
-  adminForm.style.display = "none";
-  adminPanel.style.display = "none";
-  renderPoll();
-};
-
-// Populate option inputs for admin form
-function populateOptionsInputs() {
-  optionsContainer.innerHTML = "";
-  currentPoll.options.forEach((opt, i) => {
-    const input = document.createElement("input");
-    input.className = "option-input input";
-    input.placeholder = `Option ${i + 1}`;
-    input.maxLength = 50;
-    input.value = opt;
-    optionsContainer.appendChild(input);
-  });
-}
-
-// Add option input (max 5)
-addOptionBtn.onclick = () => {
-  const currentInputs = optionsContainer.querySelectorAll("input.option-input");
-  if (currentInputs.length >= 5) {
-    alert("Maximum 5 options allowed.");
-    return;
-  }
-  if (currentInputs.length > 0 && currentInputs[currentInputs.length - 1].value.trim() === "") {
-    alert("Please fill the last option before adding a new one.");
-    return;
-  }
-  const input = document.createElement("input");
-  input.className = "option-input input";
-  input.placeholder = `Option ${currentInputs.length + 1}`;
-  input.maxLength = 50;
-  optionsContainer.appendChild(input);
-};
-
-// Save poll from admin form
-savePollBtn.onclick = () => {
+// Save new poll (admin)
+async function savePoll() {
   const question = newQuestionInput.value.trim();
-  const optionInputs = [...optionsContainer.querySelectorAll("input.option-input")];
-  const options = optionInputs.map(input => input.value.trim()).filter(v => v !== "");
+  const optionInputs = optionsContainer.querySelectorAll(".option-input");
+  const options = Array.from(optionInputs)
+    .map(input => input.value.trim())
+    .filter(opt => opt.length > 0);
 
   if (!question) {
     alert("Please enter a poll question.");
     return;
   }
   if (options.length < 2) {
-    alert("Please enter at least 2 options.");
+    alert("Please enter at least two options.");
     return;
   }
 
-  currentPoll = {
-    question,
-    options,
-    votes: options.map(() => 0),
-  };
+  const pollRef = push(ref(db, "polls"));
 
-  set(ref(db, 'poll'), currentPoll);
-  localStorage.removeItem("pollApp_voted");
-  alert("Poll saved!");
-  renderPoll();
-};
+  try {
+    await set(pollRef, {
+      question,
+      options,
+      votes: options.map(() => 0)
+    });
 
-// Initial fetch and render
-fetchPoll();
+    // Clear form
+    newQuestionInput.value = "";
+    clearChildren(optionsContainer);
+    addOptionInput(); // add two inputs by default
+    addOptionInput();
+
+    alert("Poll saved!");
+  } catch (e) {
+    console.error("Save poll error:", e);
+  }
+}
+
+// Add new option input field (admin)
+function addOptionInput() {
+  const input = document.createElement("input");
+  input.className = "option-input input";
+  input.placeholder = `Option ${optionsContainer.children.length + 1}`;
+  input.maxLength = 50;
+  optionsContainer.appendChild(input);
+}
+
+// Admin login
+function adminLogin() {
+  if (adminPasswordInput.value === ADMIN_PASSWORD) {
+    isAdmin = true;
+    adminPanel.style.display = "block";
+    adminForm.style.display = "block";
+    adminLoginBtn.style.display = "none";
+    adminPasswordInput.value = "";
+    loginBtn.style.display = "none";
+    newQuestionInput.focus();
+    loadPolls();
+  } else {
+    alert("Wrong admin password!");
+  }
+}
+
+// Admin logout
+function adminLogout() {
+  isAdmin = false;
+  adminPanel.style.display = "none";
+  adminLoginBtn.style.display = "inline-block";
+  clearChildren(pollsList);
+  resultDiv.textContent = "";
+  loadPolls();
+}
+
+// Load polls from Firebase
+function loadPolls() {
+  const pollsRef = ref(db, "polls");
+  onValue(pollsRef, (snapshot) => {
+    renderPolls(snapshot.val());
+  });
+}
+
+// Event Listeners
+adminLoginBtn.addEventListener("click", () => {
+  adminPanel.style.display = "block";
+});
+
+loginBtn.addEventListener("click", adminLogin);
+
+logoutBtn.addEventListener("click", adminLogout);
+
+addOptionBtn.addEventListener("click", () => {
+  addOptionInput();
+});
+
+savePollBtn.addEventListener("click", savePoll);
+
+// Initialize
+clearChildren(optionsContainer);
+addOptionInput();
+addOptionInput();
+loadPolls();
