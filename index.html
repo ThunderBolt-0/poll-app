@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Cool Poll App</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Full Featured Poll App</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
@@ -16,17 +17,35 @@
   </div>
 
   <div class="container" id="admin-panel" style="display:none;">
-    <input type="password" id="admin-password" placeholder="Enter admin password" class="input">
+    <input
+      type="password"
+      id="admin-password"
+      placeholder="Enter admin password"
+      class="input"
+    />
     <button id="login-btn" class="button">Login</button>
 
-    <div id="admin-form" style="display:none;">
-      <input id="new-question" placeholder="Poll question" class="input">
+    <div id="admin-form" style="display:none; margin-top:1rem;">
+      <input
+        id="new-question"
+        placeholder="Poll question"
+        class="input"
+      />
       <div id="options-container">
-        <input class="option-input input" placeholder="Option 1">
-        <input class="option-input input" placeholder="Option 2">
+        <input
+          class="option-input input"
+          placeholder="Option 1"
+          maxlength="50"
+        />
+        <input
+          class="option-input input"
+          placeholder="Option 2"
+          maxlength="50"
+        />
       </div>
       <button id="add-option" class="button">+ Add Option</button>
       <button id="save-poll" class="button blue">Save Poll</button>
+      <button id="logout-btn" class="button red" style="margin-left:8px;">Logout</button>
     </div>
   </div>
 
