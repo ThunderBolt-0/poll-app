@@ -1,4 +1,7 @@
-// Sample Poll
+// Global admin flag
+let isAdmin = false;
+
+// Load poll from localStorage or default poll
 let currentPoll = JSON.parse(localStorage.getItem("poll")) || {
   question: "What's your favorite programming language?",
   options: ["JavaScript", "Python", "C++"],
@@ -22,21 +25,27 @@ function renderPoll() {
     div.onclick = () => vote(i);
     opts.appendChild(div);
 
-    // GSAP entrance animation
+    // GSAP entrance animation for options
     gsap.from(div, { opacity: 0, x: -50, duration: 0.6, delay: i * 0.1 });
   });
 }
 
 // === VOTE FUNCTION ===
 function vote(index) {
-  if (localStorage.getItem("voted")) {
+  // Only block voting for regular users who already voted
+  if (!isAdmin && localStorage.getItem("voted")) {
     alert("You've already voted.");
     return;
   }
 
   currentPoll.votes[index]++;
   localStorage.setItem("poll", JSON.stringify(currentPoll));
-  localStorage.setItem("voted", "true");
+  
+  // Mark as voted only if NOT admin
+  if (!isAdmin) {
+    localStorage.setItem("voted", "true");
+  }
+
   showResults();
 }
 
@@ -63,6 +72,7 @@ document.getElementById("admin-login").onclick = () => {
 document.getElementById("login-btn").onclick = () => {
   const pass = document.getElementById("admin-password").value;
   if (pass === "Admin12347") {
+    isAdmin = true;  // Set admin flag here!
     document.getElementById("admin-form").style.display = "block";
     gsap.from("#admin-form", { opacity: 0, y: -20, duration: 0.4 });
   } else {
@@ -80,7 +90,27 @@ document.getElementById("add-option").onclick = () => {
 
 document.getElementById("save-poll").onclick = () => {
   const question = document.getElementById("new-question").value;
-  const options = [...document.querySelectorAll(".option-input")].map(el => el.value).filter(v => v.trim() !== "");
+  const options = [...document.querySelectorAll(".option-input")]
+                    .map(el => el.value)
+                    .filter(v => v.trim() !== "");
 
   if (!question || options.length < 2) {
-    aler
+    alert("Please enter a question and at least 2 options.");
+    return;
+  }
+
+  currentPoll = {
+    question,
+    options,
+    votes: options.map(() => 0)
+  };
+
+  localStorage.setItem("poll", JSON.stringify(currentPoll));
+  localStorage.removeItem("voted");
+
+  renderPoll();
+  alert("Poll saved!");
+};
+
+// Initial render
+renderPoll();
